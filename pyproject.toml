@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gauntlet"
+version = "0.1.0"
+description = "Adversarial test and defense harness for LLM agents: red-team corpus, defense stack, in-flight detection, and an attack-surface report."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = []
+
+[project.optional-dependencies]
+# The Anthropic SDK is only needed for live runs against the reference agent.
+# Tests and CI run fully offline through the stub client and never import it.
+live = ["anthropic>=0.40"]
+dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11"]
+
+[project.scripts]
+gauntlet = "gauntlet.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gauntlet"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+src = ["src", "tests"]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+mypy_path = "src"
+files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+module = ["anthropic", "anthropic.*"]
+ignore_missing_imports = true
