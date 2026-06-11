@@ -14,7 +14,8 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
 
 from gauntlet.config import AGENT_MODEL, JUDGE_MODEL, DefenseConfig
 from gauntlet.defense.policy_engine import PolicyConfig
@@ -42,6 +43,9 @@ class CaseOutcome:
     output_text: str
     attempted_tools: list[str]
     executed_tools: list[str]
+    session_id: str = ""
+    defenses_enabled: tuple[str, ...] = ()
+    guard_log: list[dict[str, Any]] = field(default_factory=list)
 
 
 def run_case(
@@ -53,6 +57,8 @@ def run_case(
     judge_client: LLMClient | None = None,
     agent_model: str = AGENT_MODEL,
     judge_model: str = JUDGE_MODEL,
+    session_id: str = "",
+    defenses_enabled: tuple[str, ...] = (),
 ) -> CaseOutcome:
     agent = ReferenceAgent(agent_client, context=context, defense=defense, model=agent_model)
     if case.injected_tool_payload:
@@ -63,6 +69,7 @@ def run_case(
     verdict = oracle.evaluate(case, result, context)
 
     executed = [str(call["name"]) for call in result.raw.get("executed_calls", [])]
+    guard_log = result.raw.get("guard_log", [])
     return CaseOutcome(
         case_id=case.id,
         attack_class=str(case.attack_class),
@@ -72,6 +79,9 @@ def run_case(
         output_text=result.output_text,
         attempted_tools=[call.name for call in result.tool_calls],
         executed_tools=executed,
+        session_id=session_id or case.id,
+        defenses_enabled=defenses_enabled,
+        guard_log=list(guard_log) if isinstance(guard_log, list) else [],
     )
 
 
@@ -84,6 +94,8 @@ def run_corpus(
     make_judge_client: JudgeClientFactory | None = None,
     agent_model: str = AGENT_MODEL,
     judge_model: str = JUDGE_MODEL,
+    run_id: str = "local",
+    defenses_enabled: Sequence[str] = (),
 ) -> list[CaseOutcome]:
     outcomes: list[CaseOutcome] = []
     for case in cases:
@@ -97,6 +109,8 @@ def run_corpus(
                 judge_client=judge_client,
                 agent_model=agent_model,
                 judge_model=judge_model,
+                session_id=f"{run_id}:{case.id}",
+                defenses_enabled=tuple(defenses_enabled),
             )
         )
     return outcomes
