@@ -38,7 +38,25 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def cmd_run(args: argparse.Namespace) -> int:
-    print(f"gauntlet run (defenses={args.defenses}): corpus runner lands in Phase 2.")
+    from .attacks.base import load_corpus
+    from .attacks.runner import offline_clients, run_corpus
+    from .report.scoring import format_summary, summarize
+    from .target.reference_agent import default_context
+
+    if args.defenses != "off":
+        print("Phase 2 wires only --defenses off; on/both arrive in Phase 3. Running off.")
+
+    context = default_context()
+    cases = load_corpus()
+    make_agent, make_judge = offline_clients(context)
+    outcomes = run_corpus(
+        cases,
+        context=context,
+        make_agent_client=make_agent,
+        make_judge_client=make_judge,
+    )
+    score = summarize(outcomes)
+    print(format_summary("defenses=off (offline replay)", score))
     return 0
 
 
