@@ -39,24 +39,28 @@ def build_parser() -> argparse.ArgumentParser:
 
 def cmd_run(args: argparse.Namespace) -> int:
     from .attacks.base import load_corpus
-    from .attacks.runner import offline_clients, run_corpus
+    from .attacks.runner import defense_factory, offline_clients, run_corpus
+    from .config import DefenseConfig
     from .report.scoring import format_summary, summarize
     from .target.reference_agent import default_context
-
-    if args.defenses != "off":
-        print("Phase 2 wires only --defenses off; on/both arrive in Phase 3. Running off.")
 
     context = default_context()
     cases = load_corpus()
     make_agent, make_judge = offline_clients(context)
-    outcomes = run_corpus(
-        cases,
-        context=context,
-        make_agent_client=make_agent,
-        make_judge_client=make_judge,
-    )
-    score = summarize(outcomes)
-    print(format_summary("defenses=off (offline replay)", score))
+
+    configs = {"off": DefenseConfig.all_off(), "on": DefenseConfig.all_on()}
+    selected = {"off": ["off"], "on": ["on"], "both": ["off", "on"]}[args.defenses]
+
+    for name in selected:
+        outcomes = run_corpus(
+            cases,
+            context=context,
+            make_agent_client=make_agent,
+            make_judge_client=make_judge,
+            make_defense=defense_factory(configs[name], context),
+        )
+        print(format_summary(f"defenses={name} (offline replay)", summarize(outcomes)))
+        print()
     return 0
 
 

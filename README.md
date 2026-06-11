@@ -8,9 +8,18 @@ attack-surface report.
 This is defensive security tooling. Everything here probes and hardens an agent
 the operator controls. See [Defensive scope](#defensive-scope).
 
-> Status: in development. Phase 1 (scaffold, LLM client, target adapters, CLI
-> skeleton) is in place. Phases 2 to 5 add the attack library, defense stack,
-> in-flight detection, and the scoring report.
+> Status: in development. Phases 1 to 3 are in place: scaffold and LLM client,
+> the attack library and offline runner, and the toggleable defense stack. Run
+> `gauntlet run --defenses both` to see the corpus drop from 100% success
+> (bare agent) to 0% (defended). Phases 4 to 5 add in-flight detection and the
+> scoring report.
+
+Each defense is independently toggleable so its contribution is measurable. The
+boundary defenses (input guard, output guard, tool-call policy) are deterministic
+and verified offline; prompt hardening shapes what the model sees and so is a
+live-run mitigation (the offline harness holds model behavior fixed, so its
+effect does not show up in the deterministic scores). This split is intentional
+and documented in the tests.
 
 ## What it does
 

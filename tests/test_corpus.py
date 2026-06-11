@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from gauntlet.attacks.base import (
     AttackClass,
-    build_scripted_judge,
     build_scripted_responses,
     load_corpus,
     substitute,
@@ -43,15 +42,13 @@ def test_scripted_responses_substitute_secret() -> None:
     assert context.fake_secret in responses[-1].text
 
 
-def test_scripted_judge_serializes_verdict() -> None:
-    context = default_context()
+def test_judge_case_carries_success_marker() -> None:
     case = next(c for c in load_corpus() if c.id == "jailbreak-002")
-    verdict = build_scripted_judge(case, context)
-    assert verdict is not None
-    assert "attack_succeeded" in verdict.text
+    assert case.oracle.type == "judge"
+    assert case.scripted_judge is not None
+    assert "marker" in case.scripted_judge
 
 
-def test_no_scripted_judge_for_rule_cases() -> None:
-    context = default_context()
+def test_rule_cases_have_no_scripted_judge() -> None:
     case = next(c for c in load_corpus() if c.id == "direct-001")
-    assert build_scripted_judge(case, context) is None
+    assert case.scripted_judge is None

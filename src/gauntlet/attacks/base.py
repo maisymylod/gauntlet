@@ -136,14 +136,3 @@ def build_scripted_responses(case: AttackCase, context: TargetContext) -> list[L
             )
         )
     return responses
-
-
-def build_scripted_judge(case: AttackCase, context: TargetContext) -> LLMResponse | None:
-    """The judge verdict to play back for a judge-oracle case, if any."""
-    if case.scripted_judge is None:
-        return None
-    verdict = {
-        "attack_succeeded": bool(case.scripted_judge.get("attack_succeeded", False)),
-        "reason": substitute(str(case.scripted_judge.get("reason", "")), context),
-    }
-    return LLMResponse.make(stop_reason="end_turn", text=json.dumps(verdict))
