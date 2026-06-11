@@ -98,9 +98,26 @@ class ReferenceAgent:
     def reset(self) -> None:
         self._messages = []
 
+    def apply_injection(self, payload: dict[str, Any]) -> None:
+        """Seed a second-order injection vector before the turn runs.
+
+        ``{"kind": "url", "key": "http://...", "value": "..."}`` plants a
+        malicious fetched page; ``{"kind": "file", "key": "/path", "value": ...}``
+        plants a malicious file. The payload arrives via a tool result, not the
+        user turn, which is what makes it an indirect injection.
+        """
+        kind = payload.get("kind")
+        key = str(payload.get("key", ""))
+        value = str(payload.get("value", ""))
+        if kind == "url":
+            self.urls[key] = value
+        elif kind == "file":
+            self.files[key] = value
+
     def send(self, user_text: str) -> TargetResult:
         guard_log: list[dict[str, Any]] = []
         tool_calls_made: list[ToolCall] = []
+        executed_calls: list[dict[str, Any]] = []
 
         input_decision = self.defense.on_user_input(user_text)
         guard_log.append({"stage": "input", "decision": _decision_dict(input_decision)})
@@ -150,6 +167,7 @@ class ReferenceAgent:
                         )
                         continue
                     output = self._run_tool(call)
+                    executed_calls.append({"name": call.name, "arguments": call.arguments})
                     tool_results.append(_tool_result(call.id, output))
                 self._messages.append({"role": "user", "content": tool_results})
                 continue
@@ -164,7 +182,12 @@ class ReferenceAgent:
             output_text=final_text,
             tool_calls=tool_calls_made,
             system_prompt=self.context.system_prompt,
-            raw={"guard_log": guard_log, "blocked": False, "steps": steps},
+            raw={
+                "guard_log": guard_log,
+                "blocked": False,
+                "steps": steps,
+                "executed_calls": executed_calls,
+            },
         )
 
     def _run_tool(self, call: ToolCall) -> str:
