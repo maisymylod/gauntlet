@@ -8,18 +8,31 @@ attack-surface report.
 This is defensive security tooling. Everything here probes and hardens an agent
 the operator controls. See [Defensive scope](#defensive-scope).
 
-> Status: in development. Phases 1 to 3 are in place: scaffold and LLM client,
-> the attack library and offline runner, and the toggleable defense stack. Run
-> `gauntlet run --defenses both` to see the corpus drop from 100% success
-> (bare agent) to 0% (defended). Phases 4 to 5 add in-flight detection and the
-> scoring report.
+![CI](https://github.com/maisymylod/gauntlet/actions/workflows/ci.yml/badge.svg)
+
+## One-command demo
+
+```bash
+pip install -e ".[dev]"
+gauntlet run
+```
+
+This runs the full corpus offline (no API key needed): defenses off, defenses
+on, each defense alone, and the detection pass. It prints the attack-surface
+report and writes artifacts to `runs/local/` (`report.md`, `summary.json`,
+`events_off.jsonl`, `events_on.jsonl`, and one incident report per flagged
+session). The headline: the bare agent fails **100%** of the corpus; with the
+defense stack on, **0%** of attacks succeed.
+
+`gauntlet gate --threshold 0.6` is the CI quality gate: it fails the build if
+the defenses block less than the threshold fraction of the corpus.
 
 Each defense is independently toggleable so its contribution is measurable. The
 boundary defenses (input guard, output guard, tool-call policy) are deterministic
 and verified offline; prompt hardening shapes what the model sees and so is a
 live-run mitigation (the offline harness holds model behavior fixed, so its
 effect does not show up in the deterministic scores). This split is intentional
-and documented in the tests.
+and documented in the tests and in [docs/threat-model.md](docs/threat-model.md).
 
 ## What it does
 
