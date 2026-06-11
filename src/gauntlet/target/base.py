@@ -65,9 +65,21 @@ class Target(Protocol):
 class Defense(Protocol):
     """The guard seam wrapped around a target's turn."""
 
+    def harden_system_prompt(self, system: str) -> str:
+        """Return the system prompt the agent should actually send."""
+        ...
+
     def on_user_input(self, text: str) -> GuardDecision: ...
 
     def on_tool_call(self, call: ToolCall) -> GuardDecision: ...
+
+    def on_tool_result(self, tool_name: str, content: str) -> tuple[str, GuardDecision]:
+        """Screen a tool result before it returns to the model.
+
+        Indirect injection arrives here, not on the user turn. Returns possibly
+        sanitized content and a decision; a disallowed result aborts the turn.
+        """
+        ...
 
     def on_output(self, text: str) -> tuple[str, GuardDecision]:
         """Return possibly-redacted output text and the guard decision."""
@@ -77,11 +89,17 @@ class Defense(Protocol):
 class NullDefense:
     """No defenses. Everything is allowed and unmodified."""
 
+    def harden_system_prompt(self, system: str) -> str:
+        return system
+
     def on_user_input(self, text: str) -> GuardDecision:
         return GuardDecision(allowed=True, verdict="clean")
 
     def on_tool_call(self, call: ToolCall) -> GuardDecision:
         return GuardDecision(allowed=True, verdict="clean")
+
+    def on_tool_result(self, tool_name: str, content: str) -> tuple[str, GuardDecision]:
+        return content, GuardDecision(allowed=True, verdict="clean")
 
     def on_output(self, text: str) -> tuple[str, GuardDecision]:
         return text, GuardDecision(allowed=True, verdict="clean")

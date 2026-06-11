@@ -138,7 +138,7 @@ class ReferenceAgent:
             response = self.client.complete(
                 LLMRequest(
                     model=self.model,
-                    system=self.context.system_prompt,
+                    system=self.defense.harden_system_prompt(self.context.system_prompt),
                     # Snapshot the history per call: the running list keeps
                     # mutating, and a recorded request should reflect the state
                     # at call time.
@@ -168,7 +168,29 @@ class ReferenceAgent:
                         continue
                     output = self._run_tool(call)
                     executed_calls.append({"name": call.name, "arguments": call.arguments})
-                    tool_results.append(_tool_result(call.id, output))
+                    screened, result_decision = self.defense.on_tool_result(call.name, output)
+                    guard_log.append(
+                        {
+                            "stage": "tool_result",
+                            "tool": call.name,
+                            "decision": _decision_dict(result_decision),
+                        }
+                    )
+                    if not result_decision.allowed:
+                        # An injected instruction reached us through a tool result.
+                        # Abort the turn rather than feed it to the model.
+                        return TargetResult(
+                            output_text="[blocked: untrusted content in tool result]",
+                            tool_calls=tool_calls_made,
+                            system_prompt=self.context.system_prompt,
+                            raw={
+                                "guard_log": guard_log,
+                                "blocked": True,
+                                "steps": steps,
+                                "executed_calls": executed_calls,
+                            },
+                        )
+                    tool_results.append(_tool_result(call.id, screened))
                 self._messages.append({"role": "user", "content": tool_results})
                 continue
 
