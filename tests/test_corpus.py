@@ -52,3 +52,19 @@ def test_judge_case_carries_success_marker() -> None:
 def test_rule_cases_have_no_scripted_judge() -> None:
     case = next(c for c in load_corpus() if c.id == "direct-001")
     assert case.scripted_judge is None
+
+
+def test_load_corpus_rejects_duplicate_ids(tmp_path) -> None:
+    # Two cases sharing an id must be rejected, not silently collapsed (which
+    # would underreport corpus size and can break report rendering).
+    case = (
+        '{"id": "dup-001", "attack_class": "jailbreak", "description": "d", '
+        '"user_text": "u", "oracle": {"type": "rule"}}'
+    )
+    (tmp_path / "a.jsonl").write_text(case + "\n" + case + "\n", encoding="utf-8")
+    try:
+        load_corpus(tmp_path)
+    except ValueError as exc:
+        assert "dup-001" in str(exc)
+    else:
+        raise AssertionError("expected ValueError for a duplicate case id")
