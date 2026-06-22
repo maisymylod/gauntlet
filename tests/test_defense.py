@@ -89,6 +89,24 @@ def test_policy_enforces_repeat_limit() -> None:
     assert not engine.check(call).allowed
 
 
+def test_policy_rejects_non_string_path() -> None:
+    # A non-string path must be rejected, not coerced to str (which would let
+    # {"path": 123} read as "123" and could slip past a prefix check).
+    engine = PolicyEngine(PolicyConfig())
+    blocked = engine.check(ToolCall("1", "read_file", {"path": 123}))
+    assert not blocked.allowed
+    assert "string" in blocked.reason
+    missing = engine.check(ToolCall("2", "read_file", {}))
+    assert not missing.allowed
+
+
+def test_policy_rejects_non_string_url() -> None:
+    engine = PolicyEngine(PolicyConfig())
+    blocked = engine.check(ToolCall("1", "fetch_url", {"url": ["http://docs.test"]}))
+    assert not blocked.allowed
+    assert "string" in blocked.reason
+
+
 def test_prompt_hardening_wraps_and_preserves() -> None:
     hardened = harden("You are AcmeAssistant.")
     assert "You are AcmeAssistant." in hardened
