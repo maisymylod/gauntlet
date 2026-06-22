@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from gauntlet.attacks.base import (
     AttackClass,
     build_scripted_responses,
@@ -54,7 +56,7 @@ def test_rule_cases_have_no_scripted_judge() -> None:
     assert case.scripted_judge is None
 
 
-def test_load_corpus_rejects_duplicate_ids(tmp_path) -> None:
+def test_load_corpus_rejects_duplicate_ids(tmp_path: Path) -> None:
     # Two cases sharing an id must be rejected, not silently collapsed (which
     # would underreport corpus size and can break report rendering).
     case = (
