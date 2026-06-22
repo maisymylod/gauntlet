@@ -83,3 +83,34 @@ def test_incident_report_has_expected_sections() -> None:
     assert "## Guard timeline" in report
     assert "## Recommended mitigation" in report
     assert "deny-by-default" in report
+
+
+def test_detection_thresholds_are_configurable() -> None:
+    from gauntlet.detect.detector import DetectionConfig, detect_event
+    from gauntlet.detect.events import SecurityEvent, ToolCallRecord
+
+    # Two in-scope, allowed reads: the only signal is tool escalation.
+    benign_reads = [
+        ToolCallRecord(name="read_file", arguments={"path": "/data/tenant_a/1"}, allowed=True),
+        ToolCallRecord(name="read_file", arguments={"path": "/data/tenant_a/2"}, allowed=True),
+    ]
+    event = SecurityEvent(
+        run_id="t", session_id="t:1", seq=0, attack_id=None, attack_class=None,
+        defenses_enabled=[], input_verdict="clean", output_verdict="clean",
+        tool_calls=benign_reads, tool_result_verdicts=["clean", "clean"], blocked=False,
+        oracle_success=False, oracle_rationale="", output_excerpt="ok",
+    )
+
+    # Default threshold (2): two calls flag as tool escalation.
+    default = detect_event(event)
+    assert "tool_escalation" in default.signals
+    assert default.flagged
+
+    # A chattier agent: raise the threshold so two calls no longer escalate.
+    relaxed = detect_event(event, DetectionConfig(tool_escalation_threshold=5))
+    assert "tool_escalation" not in relaxed.signals
+    assert not relaxed.flagged
+
+    # A custom read scope turns the same in-scope reads into risky reads.
+    rescoped = detect_event(event, DetectionConfig(read_scope_prefix="/data/tenant_z"))
+    assert any(s.startswith("risky_read:") for s in rescoped.signals)
