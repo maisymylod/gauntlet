@@ -97,6 +97,11 @@ def load_corpus(corpus_dir: Path | None = None) -> list[AttackCase]:
                 cases.append(AttackCase.from_dict(json.loads(stripped)))
             except (json.JSONDecodeError, KeyError) as exc:
                 raise ValueError(f"{path.name}:{line_number}: invalid case ({exc})") from exc
+    seen: set[str] = set()
+    for case in cases:
+        if case.id in seen:
+            raise ValueError(f"duplicate case id: {case.id!r}")
+        seen.add(case.id)
     cases.sort(key=lambda c: c.id)
     return cases
 
