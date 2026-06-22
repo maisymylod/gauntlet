@@ -51,13 +51,17 @@ class PolicyEngine:
             return _block(f"repeated call limit ({self.config.max_repeats}) exceeded")
 
         if call.name == "read_file":
-            path = str(call.arguments.get("path", ""))
+            path = call.arguments.get("path")
+            if not isinstance(path, str):
+                return _block(f"path must be a string, got {type(path).__name__}")
             if not any(path.startswith(prefix) for prefix in self.config.read_allow_prefixes):
                 return _block(f"path out of scope: {path!r}")
             return _allow()
 
         if call.name == "fetch_url":
-            url = str(call.arguments.get("url", ""))
+            url = call.arguments.get("url")
+            if not isinstance(url, str):
+                return _block(f"url must be a string, got {type(url).__name__}")
             host = urlparse(url).hostname or ""
             if host not in self.config.fetch_allow_hosts:
                 return _block(f"host not allowlisted: {host!r}")
